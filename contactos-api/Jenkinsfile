@@ -1,0 +1,37 @@
+pipeline {
+    /* Define dónde se ejecutará el pipeline. 'any' significa cualquier agente disponible */
+    agent any 
+
+    stages {
+        /* Los stages dividen el proceso en fases lógicas (Build, Test, Deploy) */
+        stage('Bienvenida') {
+            steps {
+                echo '¡Hola Mundo desde Jenkinsfile!'
+            }
+        }
+
+        stage('Información del Sistema') {
+            steps {
+                echo 'Estamos ejecutando este Job en el nodo:'
+                // Los comandos de shell se ejecutan con 'sh' en Linux o 'bat' en Windows
+                sh 'hostname' 
+            }
+        }
+
+        stage('Finalización') {
+            steps {
+                echo 'Pipeline finalizado con éxito.'
+            }
+        }
+    }
+    
+    /* El bloque post define acciones según el resultado del pipeline */
+    post {
+        always {
+            echo 'Limpiando el espacio de trabajo...'
+        }
+        success {
+            echo 'El despliegue fue exitoso.'
+        }
+    }
+}
