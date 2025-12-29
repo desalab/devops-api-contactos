@@ -1,0 +1,31 @@
+
+
+###
+GET http://localhost:3000/api/contactos
+
+
+### get by ID
+GET http://localhost:3000/api/contactos/4
+
+###
+POST http://localhost:3000/api/contactos
+Content-Type: application/json  
+
+{
+  "nombre": "Erika Quispe",
+  "email": "erika.quispe@example.com",
+  "telefono": "1234567890"  
+}
+
+### update contacto
+PUT http://localhost:3000/api/contactos/1
+Content-Type: application/json
+
+{
+  "nombre": "Juan Perez Updated",
+  "email": "juan.perez.updated@example.com",
+  "telefono": "0987654321"
+}
+
+### delete contacto
+DELETE http://localhost:3000/api/contactos/1
