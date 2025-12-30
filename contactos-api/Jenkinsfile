@@ -16,6 +16,13 @@ pipeline {
                 sh 'java -version'
             }
         }
+        // listanado archivos 
+        stage('Listar Archivos') {
+            steps {
+                echo 'Listando archivos en el directorio actual...'
+                sh 'ls'
+            }
+        }
         stage('Información del Sistema') {
             steps {
                 echo 'Estamos ejecutando este Job en el nodo:'
