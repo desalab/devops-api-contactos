@@ -1,0 +1,244 @@
+# deployment.yaml - Configuración completa de Kubernetes para contactos-api
+
+---
+# ConfigMap para variables de entorno
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: contactos-api-config
+  namespace: default
+data:
+  SPRING_APPLICATION_NAME: "contactos-api"
+  SERVER_PORT: "3000"
+  SPRING_JPA_DATABASE: "POSTGRESQL"
+  SPRING_JPA_SHOW_SQL: "true"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.postgresql.Driver"
+
+---
+# Secret para credenciales de base de datos
+apiVersion: v1
+kind: Secret
+metadata:
+  name: contactos-api-secret
+  namespace: default
+type: Opaque
+stringData:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-service:5432/labsdb"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  SPRING_DATASOURCE_PASSWORD: "mypassword"
+
+---
+# Deployment de PostgreSQL
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "labsdb"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          value: "mypassword"
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+# PersistentVolumeClaim para PostgreSQL
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Service de PostgreSQL
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: default
+spec:
+  selector:
+    app: postgres
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+---
+# Deployment de la API de Contactos
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contactos-api-deployment
+  namespace: default
+  labels:
+    app: contactos-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: contactos-api
+  template:
+    metadata:
+      labels:
+        app: contactos-api
+    spec:
+      containers:
+      - name: contactos-api
+        image: contactos-api:latest  # Reemplazar con tu imagen de Docker Registry
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: SPRING_APPLICATION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: contactos-api-config
+              key: SPRING_APPLICATION_NAME
+        - name: SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: contactos-api-config
+              key: SERVER_PORT
+        - name: SPRING_JPA_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: contactos-api-config
+              key: SPRING_JPA_DATABASE
+        - name: SPRING_JPA_SHOW_SQL
+          valueFrom:
+            configMapKeyRef:
+              name: contactos-api-config
+              key: SPRING_JPA_SHOW_SQL
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          valueFrom:
+            configMapKeyRef:
+              name: contactos-api-config
+              key: SPRING_JPA_HIBERNATE_DDL_AUTO
+        - name: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: contactos-api-config
+              key: SPRING_DATASOURCE_DRIVER_CLASS_NAME
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            secretKeyRef:
+              name: contactos-api-secret
+              key: SPRING_DATASOURCE_URL
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: contactos-api-secret
+              key: SPRING_DATASOURCE_USERNAME
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: contactos-api-secret
+              key: SPRING_DATASOURCE_PASSWORD
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+---
+# Service de la API de Contactos
+apiVersion: v1
+kind: Service
+metadata:
+  name: contactos-api-service
+  namespace: default
+spec:
+  selector:
+    app: contactos-api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+  type: LoadBalancer  # Cambiar a NodePort o ClusterIP según necesites
+
+---
+# HorizontalPodAutoscaler (opcional)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: contactos-api-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: contactos-api-deployment
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

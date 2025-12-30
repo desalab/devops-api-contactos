@@ -1,4 +1,5 @@
 
+- sonarqube
 
 sqp_e17e2719b62f3ee10a712e31676275085a9afdeb
 
@@ -7,3 +8,134 @@ sqp_e17e2719b62f3ee10a712e31676275085a9afdeb
   -Dsonar.projectName='contactos-api-2' \
   -Dsonar.host.url=http://localhost:9000 \
   -Dsonar.token=sqp_e17e2719b62f3ee10a712e31676275085a9afdeb
+
+Pasos para la Implementación
+-----------------------------
+
+1. Preparar la imagen Docker
+
+- Crea un Dockerfile en la raíz del proyecto:
+
+FROM eclipse-temurin:17-jdk-alpine AS builder
+WORKDIR /app
+COPY mvnw .
+COPY .mvn .mvn
+COPY pom.xml .
+COPY src src
+RUN chmod +x ./mvnw
+RUN ./mvnw clean package -DskipTests
+
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/target/contactos-api-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 3000
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+2. Construir y publicar la imagen
+
+# Construir la imagen
+docker build -t contactos-api:latest .
+
+# Etiquetar para tu registry (ejemplo Docker Hub)
+docker tag contactos-api:latest <tu-usuario>/contactos-api:latest
+
+# Publicar al registry
+docker push <tu-usuario>/contactos-api:latest
+
+3. Actualizar el deployment.yaml
+
+image: <tu-usuario>/contactos-api:latest
+
+4. Configurar el cluster de Kubernetes
+
+# Verificar conexión al cluster
+kubectl cluster-info
+
+# Crear namespace (opcional)
+kubectl create namespace contactos-app
+
+5. Aplicar los recursos de Kubernetes
+
+# Aplicar todos los recursos
+kubectl apply -f deployment.yaml
+
+# Verificar el estado de los pods
+kubectl get pods -w
+
+# Verificar servicios
+kubectl get services
+
+# Verificar deployments
+kubectl get deployments
+
+6. Verificar el despliegue
+
+# Ver logs de la aplicación
+kubectl logs -f deployment/contactos-api-deployment
+
+# Ver logs de PostgreSQL
+kubectl logs -f deployment/postgres-deployment
+
+# Verificar health de los pods
+kubectl get pods -o wide
+
+# Obtener detalles del servicio
+kubectl describe service contactos-api-service
+
+7. Acceder a la aplicación
+
+# Para LoadBalancer (cloud provider)
+kubectl get service contactos-api-service
+
+# Para NodePort (local/minikube)
+minikube service contactos-api-service
+
+# Para port-forward (desarrollo)
+kubectl port-forward service/contactos-api-service 8080:80
+
+8. Comandos útiles de gestión
+
+# Escalar manualmente
+kubectl scale deployment contactos-api-deployment --replicas=3
+
+# Actualizar imagen
+kubectl set image deployment/contactos-api-deployment contactos-api=contactos-api:v2
+
+# Ver estado del HPA
+kubectl get hpa
+
+# Ver eventos
+kubectl get events --sort-by=.metadata.creationTimestamp
+
+# Eliminar todos los recursos
+kubectl delete -f deployment.yaml
+
+9. Configuración para producción
+
+Para producción, considera agregar:
+
+Ingress Controller:
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: contactos-api-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: api.tudominio.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: contactos-api-service
+            port:
+              number: 80
+
+Agregar Spring Boot Actuator al pom.xm
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>

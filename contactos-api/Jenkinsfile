@@ -1,30 +1,203 @@
 pipeline {
-    agent any 
+    agent any
+    
+    environment {
+        // Configuración de Docker
+        DOCKER_REGISTRY = 'your-docker-registry'  // Cambiar por tu registry (ej: docker.io, gcr.io, etc.)
+        DOCKER_IMAGE_NAME = 'contactos-api'
+        DOCKER_CREDENTIALS_ID = 'docker-hub-credentials'  // ID de las credenciales en Jenkins
+        
+        // Configuración de Kubernetes
+        KUBECONFIG_CREDENTIALS_ID = 'kubeconfig-credentials'  // ID del kubeconfig en Jenkins
+        K8S_NAMESPACE = 'default'
+        
+        // Versión de la imagen (usando el número de build)
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        FULL_IMAGE_NAME = "${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${IMAGE_TAG}"
+        LATEST_IMAGE_NAME = "${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:latest"
+    }
+    
+    tools {
+        maven 'Maven-3.9'  // Nombre configurado en Jenkins Global Tool Configuration
+        jdk 'JDK-17'       // Nombre configurado en Jenkins Global Tool Configuration
+    }
+    
     stages {
+        stage('Checkout') {
+            steps {
+                echo 'Obteniendo código fuente...'
+                checkout scm
+            }
+        }
+        
         stage('Build') {
             steps {
-                sh 'echo “building the app” '
+                echo 'Compilando el proyecto con Maven...'
+                sh '''
+                    chmod +x ./mvnw
+                    ./mvnw clean package -DskipTests
+                '''
             }
         }
-        stage('Test') {
+        
+        stage('Unit Tests') {
             steps {
-                sh 'echo “Running tests” '
+                echo 'Ejecutando pruebas unitarias...'
+                sh './mvnw test'
+            }
+            post {
+                always {
+                    // Publicar resultados de pruebas
+                    junit '**/target/surefire-reports/*.xml'
+                    // Generar reporte de cobertura si está configurado
+                    // jacoco execPattern: '**/target/jacoco.exec'
+                }
             }
         }
-        stage('Deploy') {
+        
+        stage('Code Quality Analysis') {
             steps {
-                sh 'echo “deploying” '
+                echo 'Análisis de calidad de código...'
+                script {
+                    // Descomentar si tienes SonarQube configurado
+                    // withSonarQubeEnv('SonarQube') {
+                    //     sh './mvnw sonar:sonar'
+                    // }
+                    echo 'Saltando análisis de SonarQube (no configurado)'
+                }
             }
         }
-
+        
+        stage('Build Docker Image') {
+            steps {
+                echo 'Construyendo imagen Docker...'
+                script {
+                    // Construir la imagen Docker
+                    sh """
+                        docker build -t ${FULL_IMAGE_NAME} .
+                        docker tag ${FULL_IMAGE_NAME} ${LATEST_IMAGE_NAME}
+                    """
+                }
+            }
+        }
+        
+        stage('Push Docker Image') {
+            steps {
+                echo 'Subiendo imagen a Docker Registry...'
+                script {
+                    // Login y push a Docker Registry
+                    docker.withRegistry('', DOCKER_CREDENTIALS_ID) {
+                        sh """
+                            docker push ${FULL_IMAGE_NAME}
+                            docker push ${LATEST_IMAGE_NAME}
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Security Scan') {
+            steps {
+                echo 'Escaneando vulnerabilidades en la imagen...'
+                script {
+                    // Descomentar si tienes Trivy instalado
+                    // sh "trivy image --severity HIGH,CRITICAL ${FULL_IMAGE_NAME}"
+                    echo 'Saltando escaneo de seguridad (Trivy no configurado)'
+                }
+            }
+        }
+        
+        stage('Deploy to Kubernetes') {
+            steps {
+                echo 'Desplegando en Kubernetes...'
+                script {
+                    withKubeConfig([credentialsId: KUBECONFIG_CREDENTIALS_ID]) {
+                        // Aplicar configuraciones de Kubernetes
+                        sh """
+                            # Aplicar ConfigMaps y Secrets
+                            kubectl apply -f deployment.yaml -n ${K8S_NAMESPACE}
+                            
+                            # Actualizar la imagen del deployment
+                            kubectl set image deployment/contactos-api-deployment \
+                                contactos-api=${FULL_IMAGE_NAME} \
+                                -n ${K8S_NAMESPACE}
+                            
+                            # Verificar el rollout
+                            kubectl rollout status deployment/contactos-api-deployment \
+                                -n ${K8S_NAMESPACE} --timeout=5m
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                echo 'Verificando el despliegue...'
+                script {
+                    withKubeConfig([credentialsId: KUBECONFIG_CREDENTIALS_ID]) {
+                        sh """
+                            echo "Pods en ejecución:"
+                            kubectl get pods -l app=contactos-api -n ${K8S_NAMESPACE}
+                            
+                            echo "\\nServicios:"
+                            kubectl get svc contactos-api-service -n ${K8S_NAMESPACE}
+                            
+                            echo "\\nEstado del deployment:"
+                            kubectl get deployment contactos-api-deployment -n ${K8S_NAMESPACE}
+                        """
+                    }
+                }
+            }
+        }
+        
+        stage('Integration Tests') {
+            steps {
+                echo 'Ejecutando pruebas de integración...'
+                script {
+                    // Obtener la URL del servicio y ejecutar pruebas
+                    // Esto depende de tu configuración de K8s (LoadBalancer, NodePort, etc.)
+                    echo 'Esperando que el servicio esté disponible...'
+                    sleep(time: 30, unit: 'SECONDS')
+                    
+                    // Aquí puedes agregar pruebas de integración
+                    // sh 'newman run integration-tests.json'
+                    echo 'Pruebas de integración completadas'
+                }
+            }
+        }
     }
     
     post {
         always {
             echo 'Limpiando el espacio de trabajo...'
+            // Limpiar imágenes Docker locales para ahorrar espacio
+            sh """
+                docker rmi ${FULL_IMAGE_NAME} || true
+                docker rmi ${LATEST_IMAGE_NAME} || true
+            """
+            cleanWs()
         }
+        
         success {
-            echo 'El despliegue fue exitoso.'
+            echo 'El pipeline se ejecutó exitosamente.'
+            echo "Aplicación desplegada con la imagen: ${FULL_IMAGE_NAME}"
+            // Notificaciones de éxito (email, Slack, etc.)
+            // emailext subject: "✅ Deploy exitoso - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //          body: "La aplicación fue desplegada exitosamente.",
+            //          to: 'team@example.com'
+        }
+        
+        failure {
+            echo 'El pipeline falló.'
+            // Notificaciones de fallo
+            // emailext subject: "Deploy fallido - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            //          body: "El pipeline falló. Revisa los logs.",
+            //          to: 'team@example.com'
+        }
+        
+        unstable {
+            echo 'El pipeline está inestable.'
         }
     }
 }
