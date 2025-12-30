@@ -1,58 +1,29 @@
 pipeline {
-    /* Define dónde se ejecutará el pipeline. 'any' significa cualquier agente disponible */
     agent any 
-
     stages {
-        /* Los stages dividen el proceso en fases lógicas (Build, Test, Deploy) */
-        stage('Bienvenida') {
+        stage('Checkout Code') {
             steps {
-                echo '¡Hola Mundo desde Jenkins!'
+                git ‘https://github.com/desalab/devops-api-contactos’
             }
         }
-        // verificar la version de java
-        stage('Verificar Java') {
+        stage('Build') {
             steps {
-                echo 'Verificando la versión de Java instalada...'
-                sh 'java -version'
+                sh 'echo “building the app” '
             }
         }
-        // compilando el codigo fuente con maven el la carpeta del contactos-api
-        stage('Compilar con Maven') {
+        stage('Test') {
             steps {
-                echo 'Compilando el proyecto con Maven...'
-                sh 'cd contactos-api && ./mvnw clean'
+                sh 'echo “Running tests” '
             }
         }
-        // compiler el codigo fuente con maven el la carpeta del contactos-api
-        stage('Construir con Maven') {
+        stage('Deploy') {
             steps {
-                echo 'Construyendo el proyecto con Maven...'
-                sh 'cd contactos-api && ./mvnw clean compile'
+                sh 'echo “deploying” '
             }
         }
-        // ejecutar pruebas unitarias con maven en la carpeta del contactos-api
-        stage('Pruebas Unitarias con Maven') {
-            steps {
-                echo 'Ejecutando pruebas unitarias con Maven...'
-                sh 'cd contactos-api && ./mvnw test'
-            }
-        }
-        // mostrar informacion del sistema donde se esta ejecutando el jenkins
-        stage('Información del Sistema') {
-            steps {
-                echo 'Estamos ejecutando este Job en el nodo:'
-                // Los comandos de shell se ejecutan con 'sh' en Linux o 'bat' en Windows
-                sh 'hostname' 
-            }
-        }
-        stage('Finalización') {
-            steps {
-                echo 'Pipeline finalizado con éxito.'
-            }
-        }
+
     }
     
-    /* El bloque post define acciones según el resultado del pipeline */
     post {
         always {
             echo 'Limpiando el espacio de trabajo...'
