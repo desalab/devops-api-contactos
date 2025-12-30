@@ -7,6 +7,7 @@ pipeline {
         stage('Bienvenida') {
             steps {
                 echo '¡Hola Mundo desde Jenkins!'
+                sh 'java -version' // Muestra la versión de Java instalada
             }
         }
 
