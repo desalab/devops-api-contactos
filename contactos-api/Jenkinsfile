@@ -20,7 +20,7 @@ pipeline {
         stage('Compilar con Maven') {
             steps {
                 echo 'Compilando el proyecto con Maven...'
-                sh 'cd contactos-api && ls'
+                sh 'cd contactos-api && mvnw clean install'
             }
         }
         stage('Información del Sistema') {
