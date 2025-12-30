@@ -1,22 +1,40 @@
 pipeline {
     agent any 
     stages {
+        stage('Checkout Code') {
+            steps {
+                git ‘https://github.com/desalab/devops-api-contactos’
+            }
+        }
+        stage('Check install java') {
+            steps {
+                sh 'java -version'
+            }
+        }   
         stage('Build') {
             steps {
-                echo 'Compilando la aplicación...'
-                sh './mvnw clean package'
+                sh 'echo “building the app” '
             }
         }
         stage('Test') {
             steps {
-                echo 'Ejecutando pruebas unitarias...'
-                sh './mvnw test'
+                sh 'echo “Running tests” '
             }
         }
-        stage('Deploy a Staging') {
+        stage('Deploy') {
             steps {
-                echo 'Desplegando en servidor de pruebas...'
+                sh 'echo “deploying” '
             }
+        }
+
+    }
+    
+    post {
+        always {
+            echo 'Limpiando el espacio de trabajo...'
+        }
+        success {
+            echo 'El despliegue fue exitoso.'
         }
     }
 }
