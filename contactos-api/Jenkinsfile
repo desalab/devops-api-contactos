@@ -27,7 +27,7 @@ pipeline {
         stage('Construir con Maven') {
             steps {
                 echo 'Construyendo el proyecto con Maven...'
-                sh 'cd contactos-api && ./mvnw package -DskipTests'
+                sh 'cd contactos-api && ./mvnw clean compile'
             }
         }
         // ejecutar pruebas unitarias con maven en la carpeta del contactos-api
