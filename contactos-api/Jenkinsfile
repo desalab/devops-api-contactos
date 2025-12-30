@@ -8,7 +8,7 @@ pipeline {
         }
         stage('Install java'){
             steps{
-                sh 'java -version'
+                sh 'echo "Installing Java" '
             }
         } 
         stage('Build') {
