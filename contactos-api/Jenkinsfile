@@ -5,6 +5,11 @@ pipeline {
             steps {
                 git 'https://github.com/desalab/devops-api-contactos'
             }
+        }
+        stage('Install java'){
+            steps{
+                sh 'java -version'
+            }
         } 
         stage('Build') {
             steps {
