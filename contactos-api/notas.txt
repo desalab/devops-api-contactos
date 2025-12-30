@@ -1,0 +1,9 @@
+
+
+sqp_e17e2719b62f3ee10a712e31676275085a9afdeb
+
+./mvnw clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+  -Dsonar.projectKey=contactos-api-2 \
+  -Dsonar.projectName='contactos-api-2' \
+  -Dsonar.host.url=http://localhost:9000 \
+  -Dsonar.token=sqp_e17e2719b62f3ee10a712e31676275085a9afdeb
