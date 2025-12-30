@@ -7,10 +7,15 @@ pipeline {
         stage('Bienvenida') {
             steps {
                 echo '¡Hola Mundo desde Jenkins!'
-                sh 'java -version' // Muestra la versión de Java instalada
             }
         }
-
+        // verificar la version de java
+        stage('Verificar Java') {
+            steps {
+                echo 'Verificando la versión de Java instalada...'
+                sh 'java -version'
+            }
+        }
         stage('Información del Sistema') {
             steps {
                 echo 'Estamos ejecutando este Job en el nodo:'
@@ -18,7 +23,6 @@ pipeline {
                 sh 'hostname' 
             }
         }
-
         stage('Finalización') {
             steps {
                 echo 'Pipeline finalizado con éxito.'
