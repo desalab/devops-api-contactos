@@ -16,11 +16,13 @@ pipeline {
                 sh 'java -version'
             }
         }
-        // listanado archivos 
-        stage('Listar Archivos') {
+        // compilando el codigo fuente con maven el la carpeta del contactos-api
+        stage('Compilar con Maven') {
             steps {
-                echo 'Listando archivos en el directorio actual...'
-                sh 'ls'
+                echo 'Compilando el proyecto con Maven...'
+                dir('contactos-api') {
+                    sh './mvnw clean install'
+                }
             }
         }
         stage('Información del Sistema') {
