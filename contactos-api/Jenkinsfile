@@ -23,6 +23,21 @@ pipeline {
                 sh 'cd contactos-api && ./mvnw clean'
             }
         }
+        // compiler el codigo fuente con maven el la carpeta del contactos-api
+        stage('Construir con Maven') {
+            steps {
+                echo 'Construyendo el proyecto con Maven...'
+                sh 'cd contactos-api && ./mvnw package -DskipTests'
+            }
+        }
+        // ejecutar pruebas unitarias con maven en la carpeta del contactos-api
+        stage('Pruebas Unitarias con Maven') {
+            steps {
+                echo 'Ejecutando pruebas unitarias con Maven...'
+                sh 'cd contactos-api && ./mvnw test'
+            }
+        }
+        // mostrar informacion del sistema donde se esta ejecutando el jenkins
         stage('Información del Sistema') {
             steps {
                 echo 'Estamos ejecutando este Job en el nodo:'
