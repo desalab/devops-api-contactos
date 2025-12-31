@@ -1,0 +1,35 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:10.0
+    container_name: postgres-container
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: labsdb
+    ports:
+      - "5432:5432"
+    networks:
+      - spring-postgres
+
+
+  api:
+    build: .
+    image: devops-api-contactos:1.0
+    container_name: devops-api-contactos-container
+    restart: on-failure
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: labsdb
+      DB_USER: postgres
+      DB_PASS: mypassword
+    ports:
+      - "3080:3080"
+    networks:
+      - spring-postgres
+
+networks:
+  spring-postgres:
